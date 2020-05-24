@@ -37,7 +37,7 @@ sub new ($class, %args)
    $self->{alt} = $args{alt};
 
    $self->{lang}    = defined $args{lang}    ? $args{lang}    : 'en';
-	$self->{timeout} = defined $args{timeout} ? $args{timeout} : 5;
+   $self->{timeout} = defined $args{timeout} ? $args{timeout} : 5;
 
    $self->fetch_weather();
  
