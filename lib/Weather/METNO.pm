@@ -52,8 +52,6 @@ sub fetch_weather ($self)
 
    my $url = $api_url . '?lat=' . $self->{lat} . '&lon=' . $self->{lon} . (defined $self->{alt} ? ('&altitude=' . int($self->{alt})) : '');
 
-   say $url;
-
    my $r = $ua->get($url);
    croak $r->status_line unless ($r->is_success);
    my $data = decode_json($r->decoded_content);
@@ -136,7 +134,7 @@ sub symbol ($self)
 
 sub symbol_txt ($self)
 {
-   return $$symbols{(split(/_/, $self->symbol()))[0]}{'desc_'.$self->{lang}};
+   return $$symbols{(split(/_/, $self->symbol))[0]}{'desc_'.$self->{lang}};
 }
 sub precip ($self)
 {
