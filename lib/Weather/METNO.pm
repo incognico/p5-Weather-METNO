@@ -1,7 +1,5 @@
 package Weather::METNO;
 
-our $VERSION = "git";
-
 use 5.28.0;
 
 use utf8;
@@ -16,7 +14,9 @@ use JSON::MaybeXS;
 use LWP::UserAgent;
 use DateTime;
 use DateTime::Format::Strptime;
-use POSIX qw(floor);
+use POSIX 'floor';
+
+our $VERSION = 9999;
 
 my $self;
 
@@ -56,6 +56,8 @@ sub fetch_weather ($self)
    croak $r->status_line unless ($r->is_success);
    my $data = decode_json($r->decoded_content);
 
+   croak 'Unexpected JSON' unless (exists $$data{properties}{meta}{updated_at});
+
    my $strp = DateTime::Format::Strptime->new(pattern => '%Y-%m-%dT%H:%M:%SZ', time_zone => 'Europe/Oslo', strict => 1);
 
    for ($$data{properties}{timeseries}->@*)
@@ -78,6 +80,8 @@ sub fetch_weather ($self)
    $r = $ua->get($sym_url);
    croak $r->status_line unless ($r->is_success);
    $symbols = decode_json($r->decoded_content);
+
+   return;
 }
 
 ###
@@ -89,7 +93,7 @@ sub temp_c ($self)
 
 sub temp_f ($self)
 {
-   return sprintf('%.1f', ($self->temp_c*9/5)+32);
+   return sprintf('%.1f', (($self->temp_c*9/5)+32));
 }
 
 sub humidity ($self)
@@ -97,19 +101,34 @@ sub humidity ($self)
    return $$weather{$closest}{instant}{details}{relative_humidity};
 }
 
-sub windspeed ($self)
+sub windspeed_ms ($self)
 {
    return $$weather{$closest}{instant}{details}{wind_speed};
 }
 
-sub windfromdeg ($self)
+sub windspeed_kmh ($self)
+{
+   return sprintf('%.1f', ($self->windspeed_ms*3.6));
+}
+
+sub windspeed_bft ($self)
+{
+   return sprintf('%.0f', (($self->windspeed_ms/0.836)**(2/3)));
+}
+
+sub windspeed_bft_txt ($self)
+{
+   return $self->bft_to_txt($self->windspeed_bft);
+}
+
+sub windfrom_deg ($self)
 {
    return $$weather{$closest}{instant}{details}{wind_from_direction};
 }
 
-sub windfromdir ($self)
+sub windfrom_dir ($self)
 {
-   return $self->get_direction($self->windfromdeg);
+   return $self->get_direction($self->windfrom_deg);
 }
 
 sub cloudiness ($self)
@@ -146,9 +165,16 @@ sub precip ($self)
 sub get_direction ($self, $deg) {
    my @points = qw(N NbE NNE NEbN NE NEbE ENE EbN E EbS ESE SEbE SE SEbS SSE SbE S SbW SSW SWbS SW SWbW WSW WbS W WbN WNW NWbW NW NWbN NNW NbW);
 
-   my $point = floor($deg / 360 * 32);
+   my $point = floor($deg/360*32);
 
    return $points[$point];
+}
+
+sub bft_to_txt ($self, $bft)
+{
+   my @txt = ('Calm', 'Light air', 'Light breeze', 'Gentle breeze', 'Moderate breeze', 'Fresh breeze', 'Strong breeze', 'High wind', 'Gale', 'Strong gale', 'Storm', 'Violent storm', 'Hurricane');
+
+   return $txt[$bft <= 12 ? $bft : 12];
 }
 
 1;
