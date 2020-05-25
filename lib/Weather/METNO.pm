@@ -10,18 +10,18 @@ use feature 'signatures';
 no warnings qw(experimental::signatures experimental::smartmatch);
 
 use Carp;
+use DateTime::Format::Strptime;
 use JSON::MaybeXS;
 use LWP::UserAgent;
-use DateTime;
-use DateTime::Format::Strptime;
 use POSIX 'floor';
 
 our $VERSION = 9999;
 
 my $self;
 
-my (@times, $weather, $closest, $symbols);
+my ($data, @times, $weather, $closest, $symbols);
 
+my $tz      = 'Europe/Oslo';
 my $api_ver = '2.0';
 my $api_url = 'https://api.met.no/weatherapi/locationforecast/' . $api_ver;
 my $sym_url = 'https://distfiles.lifeisabug.com/metno/legends.json';
@@ -39,7 +39,7 @@ sub new ($class, %args)
    $self->{lang}    = defined $args{lang}    ? $args{lang}    : 'en';
    $self->{timeout} = defined $args{timeout} ? $args{timeout} : 5;
 
-   $self->fetch_weather();
+   $self->fetch_weather;
  
    return $self;
 }
@@ -47,18 +47,19 @@ sub new ($class, %args)
 sub fetch_weather ($self)
 {
    my $ua = LWP::UserAgent->new(timeout => $self->{timeout});
-   $ua->default_header('Accept' => 'application/json');
-   $ua->agent($self->{uid}.' ');
+   $ua->default_header('Accept'          => 'application/json');
+   $ua->default_header('Accept-Encoding' => HTTP::Message::decodable);
+   $ua->agent('p5-Weather-METNO '.$self->{uid}.' ');
 
    my $url = $api_url . '?lat=' . $self->{lat} . '&lon=' . $self->{lon} . (defined $self->{alt} ? ('&altitude=' . int($self->{alt})) : '');
 
    my $r = $ua->get($url);
    croak $r->status_line unless ($r->is_success);
-   my $data = decode_json($r->decoded_content);
+   $data = decode_json($r->decoded_content);
 
    croak 'Unexpected JSON' unless (exists $$data{properties}{meta}{updated_at});
 
-   my $strp = DateTime::Format::Strptime->new(pattern => '%Y-%m-%dT%H:%M:%SZ', time_zone => 'Europe/Oslo', strict => 1);
+   my $strp = DateTime::Format::Strptime->new(pattern => '%Y-%m-%dT%H:%M:%SZ', time_zone => $tz, strict => 1);
 
    for ($$data{properties}{timeseries}->@*)
    {
@@ -86,6 +87,11 @@ sub fetch_weather ($self)
 
 ###
 
+sub updated_at ($self)
+{
+   return DateTime::Format::Strptime->new(pattern => '%Y-%m-%dT%H:%M:%SZ', time_zone => $tz, strict => 1)->parse_datetime($$data{properties}{meta}{updated_at})->epoch;
+}
+
 sub temp_c ($self)
 {
    return $$weather{$closest}{instant}{details}{air_temperature};
@@ -99,6 +105,11 @@ sub temp_f ($self)
 sub humidity ($self)
 {
    return $$weather{$closest}{instant}{details}{relative_humidity};
+}
+
+sub airpressure ($self)
+{
+   return $$weather{$closest}{instant}{details}{air_pressure_at_sea_level};
 }
 
 sub windspeed_ms ($self)
@@ -155,6 +166,7 @@ sub symbol_txt ($self)
 {
    return $$symbols{(split(/_/, $self->symbol))[0]}{'desc_'.$self->{lang}};
 }
+
 sub precip ($self)
 {
    return $$weather{$closest}{next_1_hours}{details}{precipitation_amount};
