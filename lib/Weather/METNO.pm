@@ -1,6 +1,6 @@
 package Weather::METNO;
 
-use 5.28.0;
+use 5.24.0;
 
 use utf8;
 use strict;
