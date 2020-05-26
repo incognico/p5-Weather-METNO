@@ -10,7 +10,7 @@ use feature 'signatures';
 no warnings qw(experimental::signatures experimental::smartmatch);
 
 use Carp;
-use DateTime::Format::Strptime;
+use DateTime::Format::ISO8601;
 use JSON::MaybeXS;
 use LWP::UserAgent;
 use POSIX 'floor';
@@ -21,7 +21,6 @@ my $self;
 
 my ($data, @times, $weather, $closest, $symbols);
 
-my $tz      = 'Europe/Oslo';
 my $api_ver = '2.0';
 my $api_url = 'https://api.met.no/weatherapi/locationforecast/' . $api_ver;
 my $sym_url = 'https://distfiles.lifeisabug.com/metno/legends.json';
@@ -59,12 +58,11 @@ sub fetch_weather ($self)
 
    croak 'Unexpected JSON' unless (exists $$data{properties}{meta}{updated_at});
 
-   my $strp = DateTime::Format::Strptime->new(pattern => '%Y-%m-%dT%H:%M:%SZ', time_zone => $tz, strict => 1);
+   my $fmt = DateTime::Format::ISO8601->new;
 
    for ($$data{properties}{timeseries}->@*)
    {
-      my $dt    = $strp->parse_datetime($$_{time});
-      my $epoch = $dt->epoch();
+      my $epoch = $fmt->parse_datetime($$_{time})->epoch;
 
       push(@times, $epoch);
 
@@ -89,7 +87,7 @@ sub fetch_weather ($self)
 
 sub updated_at ($self)
 {
-   return DateTime::Format::Strptime->new(pattern => '%Y-%m-%dT%H:%M:%SZ', time_zone => $tz, strict => 1)->parse_datetime($$data{properties}{meta}{updated_at})->epoch;
+   return DateTime::Format::ISO8601->parse_datetime($$data{properties}{meta}{updated_at})->epoch;
 }
 
 sub temp_c ($self)
