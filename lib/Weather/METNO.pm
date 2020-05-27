@@ -85,6 +85,11 @@ sub fetch_weather ($self)
 
 ###
 
+sub forecast_time ($self)
+{
+   return $closest;
+}
+
 sub updated_at ($self)
 {
    return DateTime::Format::ISO8601->parse_datetime($$data{properties}{meta}{updated_at})->epoch;
