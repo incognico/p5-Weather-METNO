@@ -135,6 +135,16 @@ sub windspeed_bft_txt ($self)
    return $self->bft_to_txt($self->windspeed_bft);
 }
 
+sub windspeed_gust_ms ($self)
+{
+   return $$weather{$closest}{instant}{details}{wind_speed_of_gust};
+}
+
+sub windspeed_gust_kmh ($self)
+{
+   return sprintf('%.1f', ($self->windspeed_gust_ms*3.6));
+}
+
 sub windfrom_deg ($self)
 {
    return $$weather{$closest}{instant}{details}{wind_from_direction};
@@ -148,6 +158,11 @@ sub windfrom_dir ($self)
 sub cloudiness ($self)
 {
    return $$weather{$closest}{instant}{details}{cloud_area_fraction};
+}
+
+sub dewpoint ($self)
+{
+   return $$weather{$closest}{instant}{details}{dew_point_temperature};
 }
 
 sub foginess ($self)
