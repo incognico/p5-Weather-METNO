@@ -50,7 +50,7 @@ sub fetch_weather ($self)
    $ua->default_header('Accept-Encoding' => HTTP::Message::decodable);
    $ua->agent('p5-Weather-METNO '.$self->{uid}.' ');
 
-   my $url = $api_url . '?lat=' . sprintf('%.2d', $self->{lat}) . '&lon=' . sprintf('%.2d', $self->{lon}) . (defined $self->{alt} ? ('&altitude=' . int($self->{alt})) : '');
+   my $url = $api_url . '?lat=' . sprintf('%.2f', $self->{lat}) . '&lon=' . sprintf('%.2f', $self->{lon}) . (defined $self->{alt} ? ('&altitude=' . int($self->{alt})) : '');
 
    my $r = $ua->get($url);
    croak $r->status_line unless ($r->is_success);
