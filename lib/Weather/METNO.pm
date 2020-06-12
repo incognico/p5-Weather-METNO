@@ -22,7 +22,7 @@ my $self;
 my ($data, @times, $weather, $closest, $symbols);
 
 my $api_ver = '2.0';
-my $api_url = 'https://api.met.no/weatherapi/locationforecast/' . $api_ver;
+my $api_url = 'https://api.met.no/weatherapi/locationforecast/' . $api_ver . '/complete';
 my $sym_url = 'https://distfiles.lifeisabug.com/metno/legends.json';
 
 sub new ($class, %args)
