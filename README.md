@@ -1,5 +1,5 @@
 # p5-Weather-METNO
-Uses the [met.no](https://www.met.no/) locationforecast 2.0 (beta) API (https://api.met.no/weatherapi/locationforecast/2.0/documentation)
+Uses the [met.no](https://www.met.no/) locationforecast 2.0 API (https://api.met.no/weatherapi/locationforecast/2.0/documentation)
 
 Fetches the weather forecast and lets you access the data for the closest data point in the future.
 
@@ -15,7 +15,7 @@ Example result of usage in a Discord embed:
 
 ![embed](https://i.imgur.com/Xf56qHF.png "embed")
 
-A unique string in the user agent is required per met.no TOS, it should preferably be your domain or your email address. `uid` will get appeneded to LWP's UA string.
+A unique string in the user agent is required per met.no TOS, it should preferably be your domain or your email address, in case you need to be contacted. `uid` will get appeneded to LWP's UA string.
 
 The legend json for the symbols is currently set to `https://distfiles.lifeisabug.com/metno/legends.json` (a cached version I keep) instead of `https://api.met.no/weatherapi/weathericon/2.0/legends` because those are probably not updated very often. The API 2.0 symbol icons are meant to be self-hosted instead of being API provided, if you want to use those feel free to embed them from `https://distfiles.lifeisabug.com/metno/`
 
