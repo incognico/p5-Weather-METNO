@@ -36,7 +36,7 @@ sub new ($class, %args)
    $self->{alt} = $args{alt};
 
    $self->{lang}    = defined $args{lang}    ? $args{lang}    : 'en';
-   $self->{timeout} = defined $args{timeout} ? $args{timeout} : 5;
+   $self->{timeout} = defined $args{timeout} ? $args{timeout} : 3;
 
    $self->fetch_weather;
  
@@ -155,6 +155,11 @@ sub windfrom_dir ($self)
    return $self->get_direction($self->windfrom_deg);
 }
 
+sub windfrom_dir_utf8arrow ($self)
+{
+   return $self->get_direction($self->windfrom_deg, 1);
+}
+
 sub cloudiness ($self)
 {
    return $$weather{$closest}{instant}{details}{cloud_area_fraction};
@@ -192,12 +197,13 @@ sub precip ($self)
 
 ###
 
-sub get_direction ($self, $deg) {
-   my @points = qw(N NbE NNE NEbN NE NEbE ENE EbN E EbS ESE SEbE SE SEbS SSE SbE S SbW SSW SWbS SW SWbW WSW WbS W WbN WNW NWbW NW NWbN NNW NbW);
+sub get_direction ($self, $deg, $type = 0) # 0 = txt, 1 = unicode arrow
+{
+   my @text  = qw(N NbE NNE NEbN NE NEbE ENE EbN E EbS ESE SEbE SE SEbS SSE SbE S SbW SSW SWbS SW SWbW WSW WbS W WbN WNW NWbW NW NWbN NNW NbW);
+   my @arrow = ("\N{UPWARDS BLACK ARROW}", "\N{NORTH EAST ARROW}", "\N{RIGHTWARDS BLACK ARROW}", "\N{SOUTH EAST ARROW}", "\N{DOWNWARDS BLACK ARROW}", "\N{SOUTH WEST ARROW}", "\N{LEFTWARDS BLACK ARROW}", "\N{NORTH WEST ARROW}");
+   my $dir   = floor($deg/360*($type ? 8 : 32));
 
-   my $point = floor($deg/360*32);
-
-   return $points[$point];
+   return $type ? $arrow[$dir] : $text[$dir];
 }
 
 sub bft_to_txt ($self, $bft)
