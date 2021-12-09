@@ -11,6 +11,7 @@ no warnings qw(experimental::signatures experimental::smartmatch);
 
 use Carp;
 use DateTime::Format::ISO8601;
+use File::Slurp;
 use JSON::MaybeXS;
 use LWP::UserAgent;
 use POSIX 'floor';
@@ -23,7 +24,9 @@ my ($data, @times, $weather, $closest, $symbols);
 
 my $api_ver = '2.0';
 my $api_url = 'https://api.met.no/weatherapi/locationforecast/' . $api_ver . '/complete';
-my $sym_url = 'https://distfiles.lifeisabug.com/metno/legends.json';
+my $sym_url = 'https://api.met.no/weatherapi/weathericon/2.0/legends';
+my $sym_tmp = '/tmp/lwp-metno-legends.json';
+my $sym_sec = 604800; # seconds to $sym_tmp expiry
 
 sub new ($class, %args)
 {
@@ -36,7 +39,7 @@ sub new ($class, %args)
    $self->{alt} = $args{alt};
 
    $self->{lang}    = defined $args{lang}    ? $args{lang}    : 'en';
-   $self->{timeout} = defined $args{timeout} ? $args{timeout} : 3;
+   $self->{timeout} = defined $args{timeout} ? $args{timeout} : 5;
 
    $self->fetch_weather;
  
@@ -45,10 +48,18 @@ sub new ($class, %args)
 
 sub fetch_weather ($self)
 {
-   my $ua = LWP::UserAgent->new(timeout => $self->{timeout});
-   $ua->default_header('Accept'          => 'application/json');
+   my $ua = LWP::UserAgent->new(timeout => $self->{timeout}, agent => 'p5-Weather-METNO '.$self->{uid}.' ');
+   $ua->default_header('Accept' => 'application/json');
+
+   unless (-f $sym_tmp && (time - (stat($sym_tmp))[9]) > $sym_sec)
+   {
+      my $r = $ua->mirror($sym_url, $sym_tmp);
+      croak $r->status_line unless ($r->is_success);
+   }
+
+   $symbols = decode_json(read_file($sym_tmp));
+
    $ua->default_header('Accept-Encoding' => HTTP::Message::decodable);
-   $ua->agent('p5-Weather-METNO '.$self->{uid}.' ');
 
    my $url = $api_url . '?lat=' . sprintf('%.2f', $self->{lat}) . '&lon=' . sprintf('%.2f', $self->{lon}) . (defined $self->{alt} ? ('&altitude=' . int($self->{alt})) : '');
 
@@ -75,10 +86,6 @@ sub fetch_weather ($self)
       $closest = $_;
       last;
    }
-
-   $r = $ua->get($sym_url);
-   croak $r->status_line unless ($r->is_success);
-   $symbols = decode_json($r->decoded_content);
 
    return;
 }
