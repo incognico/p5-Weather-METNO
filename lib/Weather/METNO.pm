@@ -51,7 +51,7 @@ sub fetch_weather ($self)
    my $ua = LWP::UserAgent->new(timeout => $self->{timeout}, agent => 'p5-Weather-METNO '.$self->{uid}.' ');
    $ua->default_header('Accept' => 'application/json');
 
-   unless (-f $sym_tmp && (time - (stat($sym_tmp))[9]) < $sym_sec)
+   unless (-f $sym_tmp && (time - (stat($sym_tmp))[10]) < $sym_sec)
    {
       my $r = $ua->mirror($sym_url, $sym_tmp);
       croak $r->status_line unless ($r->is_success || $r->code == 304);
