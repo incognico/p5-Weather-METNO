@@ -23,8 +23,8 @@ my $self;
 my ($data, @times, $weather, $closest, $symbols);
 
 my $api_ver = '2.0';
-my $api_url = 'https://api.met.no/weatherapi/locationforecast/' . $api_ver . '/complete';
-my $sym_url = 'https://api.met.no/weatherapi/weathericon/2.0/legends';
+my $api_url = 'https://api.met.no/weatherapi/locationforecast/'.$api_ver.'/complete';
+my $sym_url = 'https://api.met.no/weatherapi/weathericon/'.$api_ver.'/legends';
 my $sym_tmp = '/tmp/lwp-metno-legends.json';
 my $sym_sec = 604800; # seconds to $sym_tmp expiry
 
