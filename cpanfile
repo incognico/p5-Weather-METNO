@@ -1,7 +1,5 @@
 # cpanm --installdeps .
 
-requires 'DateTime::Format::ISO8601';
-requires 'File::Slurp';
-requires 'JSON::MaybeXS';
+requires 'perl', '5.024';
 requires 'LWP::UserAgent';
 recommends 'JSON::XS';
