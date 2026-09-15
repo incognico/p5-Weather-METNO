@@ -18,10 +18,6 @@ use POSIX 'floor';
 
 our $VERSION = 9999;
 
-my $self;
-
-my ($data, @times, $weather, $closest, $symbols);
-
 my $api_ver = '2.0';
 my $api_url = 'https://api.met.no/weatherapi/locationforecast/'.$api_ver.'/complete';
 my $sym_url = 'https://distfiles.lifeisabug.com/metno/legends.json';
@@ -34,15 +30,17 @@ sub new ($class, %args)
 
    $self->{uid} = $args{uid} || croak 'A unique identifier in the UA is required per TOS, best to set it to your domain/email.';
 
-   $self->{lat} = $args{lat} // croak 'lat not specified';
-   $self->{lon} = $args{lon} // croak 'lon not specified';
+   defined $args{lat} or croak 'lat not specified';
+   defined $args{lon} or croak 'lon not specified';
+   $self->{lat} = $args{lat};
+   $self->{lon} = $args{lon};
    $self->{alt} = $args{alt};
 
    $self->{lang}    = defined $args{lang}    ? $args{lang}    : 'en';
    $self->{timeout} = defined $args{timeout} ? $args{timeout} : 5;
 
    $self->fetch_weather;
- 
+
    return $self;
 }
 
@@ -58,19 +56,26 @@ sub fetch_weather ($self)
       utime(undef, undef, $sym_tmp) if ($r->code == 304);
    }
 
-   $symbols = decode_json(read_file($sym_tmp));
+   $self->{symbols} = decode_json(read_file($sym_tmp));
 
    $ua->default_header('Accept-Encoding' => HTTP::Message::decodable);
 
    my $url = $api_url . '?lat=' . sprintf('%.2f', $self->{lat}) . '&lon=' . sprintf('%.2f', $self->{lon}) . (defined $self->{alt} ? ('&altitude=' . int($self->{alt})) : '');
+   my $tmp = '/tmp/lwp-metno-' . sprintf('%.2f_%.2f', $self->{lat}, $self->{lon}) . (defined $self->{alt} ? ('_' . int($self->{alt})) : '') . '.json';
 
-   my $r = $ua->get($url);
-   croak $r->status_line unless ($r->is_success);
-   $data = decode_json($r->decoded_content);
+   unless (-f $tmp && (time - (stat($tmp))[10]) < 1800)
+   {
+      my $r = $ua->mirror($url, $tmp);
+      croak $r->status_line unless ($r->is_success || $r->code == 304);
+      utime(undef, undef, $tmp) if ($r->code == 304);
+   }
+
+   my $data = decode_json(read_file($tmp));
 
    croak 'Unexpected JSON' unless (exists $$data{properties}{meta}{updated_at});
 
    my $fmt = DateTime::Format::ISO8601->new;
+   my (@times, $weather);
 
    for ($$data{properties}{timeseries}->@*)
    {
@@ -81,12 +86,18 @@ sub fetch_weather ($self)
       $$weather{$epoch} = $$_{data};
    }
 
+   $self->{data}    = $data;
+   $self->{times}   = \@times;
+   $self->{weather} = $weather;
+
    for (sort {$a <=> $b} @times)
    {
       next if ($_ < time);
-      $closest = $_;
+      $self->{closest} = $_;
       last;
    }
+
+   $self->{closest} //= $times[-1];
 
    return;
 }
@@ -95,17 +106,17 @@ sub fetch_weather ($self)
 
 sub forecast_time ($self)
 {
-   return $closest;
+   return $self->{closest};
 }
 
 sub updated_at ($self)
 {
-   return DateTime::Format::ISO8601->parse_datetime($$data{properties}{meta}{updated_at})->epoch;
+   return DateTime::Format::ISO8601->parse_datetime($self->{data}{properties}{meta}{updated_at})->epoch;
 }
 
 sub temp_c ($self)
 {
-   return $$weather{$closest}{instant}{details}{air_temperature};
+   return $self->{weather}{$self->{closest}}{instant}{details}{air_temperature};
 }
 
 sub temp_f ($self)
@@ -115,17 +126,17 @@ sub temp_f ($self)
 
 sub humidity ($self)
 {
-   return $$weather{$closest}{instant}{details}{relative_humidity};
+   return $self->{weather}{$self->{closest}}{instant}{details}{relative_humidity};
 }
 
 sub airpressure ($self)
 {
-   return $$weather{$closest}{instant}{details}{air_pressure_at_sea_level};
+   return $self->{weather}{$self->{closest}}{instant}{details}{air_pressure_at_sea_level};
 }
 
 sub windspeed_ms ($self)
 {
-   return $$weather{$closest}{instant}{details}{wind_speed};
+   return $self->{weather}{$self->{closest}}{instant}{details}{wind_speed};
 }
 
 sub windspeed_kmh ($self)
@@ -145,7 +156,7 @@ sub windspeed_bft_txt ($self)
 
 sub windspeed_gust_ms ($self)
 {
-   return $$weather{$closest}{instant}{details}{wind_speed_of_gust};
+   return $self->{weather}{$self->{closest}}{instant}{details}{wind_speed_of_gust};
 }
 
 sub windspeed_gust_kmh ($self)
@@ -155,7 +166,7 @@ sub windspeed_gust_kmh ($self)
 
 sub windfrom_deg ($self)
 {
-   return $$weather{$closest}{instant}{details}{wind_from_direction};
+   return $self->{weather}{$self->{closest}}{instant}{details}{wind_from_direction};
 }
 
 sub windfrom_dir ($self)
@@ -170,37 +181,39 @@ sub windfrom_dir_utf8arrow ($self)
 
 sub cloudiness ($self)
 {
-   return $$weather{$closest}{instant}{details}{cloud_area_fraction};
+   return $self->{weather}{$self->{closest}}{instant}{details}{cloud_area_fraction};
 }
 
 sub dewpoint ($self)
 {
-   return $$weather{$closest}{instant}{details}{dew_point_temperature};
+   return $self->{weather}{$self->{closest}}{instant}{details}{dew_point_temperature};
 }
 
 sub foginess ($self)
 {
-   return $$weather{$closest}{instant}{details}{fog_area_fraction};
+   return $self->{weather}{$self->{closest}}{instant}{details}{fog_area_fraction};
 }
 
 sub uvindex ($self)
 {
-   return $$weather{$closest}{instant}{details}{ultraviolet_index_clear_sky};
+   return $self->{weather}{$self->{closest}}{instant}{details}{ultraviolet_index_clear_sky};
 }
 
 sub symbol ($self)
 {
-   return $$weather{$closest}{next_1_hours}{summary}{symbol_code};
+   my $d = $self->{weather}{$self->{closest}};
+   return $$d{next_1_hours}{summary}{symbol_code} // $$d{next_6_hours}{summary}{symbol_code} // $$d{next_12_hours}{summary}{symbol_code};
 }
 
 sub symbol_txt ($self)
 {
-   return $$symbols{(split(/_/, $self->symbol))[0]}{'desc_'.$self->{lang}};
+   return $self->{symbols}{(split(/_/, $self->symbol))[0]}{'desc_'.$self->{lang}};
 }
 
 sub precip ($self)
 {
-   return $$weather{$closest}{next_1_hours}{details}{precipitation_amount};
+   my $d = $self->{weather}{$self->{closest}};
+   return $$d{next_1_hours}{details}{precipitation_amount} // $$d{next_6_hours}{details}{precipitation_amount};
 }
 
 ###
@@ -209,7 +222,7 @@ sub get_direction ($self, $deg, $type = 0) # 0 = txt, 1 = unicode arrow
 {
    my @text  = qw(N NbE NNE NEbN NE NEbE ENE EbN E EbS ESE SEbE SE SEbS SSE SbE S SbW SSW SWbS SW SWbW WSW WbS W WbN WNW NWbW NW NWbN NNW NbW);
    my @arrow = ("\N{UPWARDS BLACK ARROW}", "\N{NORTH EAST ARROW}", "\N{RIGHTWARDS BLACK ARROW}", "\N{SOUTH EAST ARROW}", "\N{DOWNWARDS BLACK ARROW}", "\N{SOUTH WEST ARROW}", "\N{LEFTWARDS BLACK ARROW}", "\N{NORTH WEST ARROW}");
-   my $dir   = floor($deg/360*($type ? 8 : 32));
+   my $dir   = floor($deg/360*($type ? 8 : 32)) % ($type ? 8 : 32);
 
    return $type ? $arrow[$dir] : $text[$dir];
 }
